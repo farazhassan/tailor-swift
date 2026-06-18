@@ -5,6 +5,17 @@ import (
 	"testing"
 )
 
+func TestParse_EmptyBulletsSkipped(t *testing.T) {
+	s, err := ParseReader([]byte("## Acme — Engineer\n### P\n- \n- real bullet\n"), "mem")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := s.Achievements()
+	if len(got) != 1 || got[0].Text != "real bullet" {
+		t.Fatalf("achievements = %+v, want only the non-empty bullet", got)
+	}
+}
+
 func TestParse_Sample(t *testing.T) {
 	path := filepath.Join("testdata", "sample.md")
 	s, err := Parse(path)

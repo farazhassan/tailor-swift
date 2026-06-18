@@ -88,6 +88,9 @@ func ParseReader(data []byte, path string) (*Store, error) {
 			if len(r.Projects) == 0 {
 				return nil, fmt.Errorf("%s:%d: achievement bullet with no project", path, lineNo)
 			}
+			if text == "" {
+				continue // skip empty bullets so they never become retrieval units
+			}
 			p := &r.Projects[len(r.Projects)-1]
 			p.Achievements = append(p.Achievements, Achievement{
 				ID: DeriveID(text), Text: text, Tags: tags,
