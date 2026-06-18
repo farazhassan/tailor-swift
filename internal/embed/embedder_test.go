@@ -100,3 +100,38 @@ func TestEmbedStorePersistedCacheSkipsProvider(t *testing.T) {
 		t.Errorf("provider calls = %d with persisted cache, want 0", f2.calls)
 	}
 }
+
+// TestEmbedStorePartiallyWarmCache pre-warms the cache with one achievement and
+// asserts the provider receives only the misses, in order — the path where an
+// index-alignment bug between miss IDs and miss text would surface.
+func TestEmbedStorePartiallyWarmCache(t *testing.T) {
+	s, err := store.ParseReader([]byte("## Acme — Eng\n### P\n- alpha\n- beta\n- gamma\n"), "mem")
+	if err != nil {
+		t.Fatalf("ParseReader: %v", err)
+	}
+	betaID := store.DeriveID("beta")
+	sentinel := []float32{42}
+
+	cache := NewCache("voyage-3")
+	cache.Put(betaID, sentinel)
+	f := &fakeEmb{}
+	e := NewEmbedder(f, cache)
+
+	got, err := e.EmbedStore(context.Background(), s)
+	if err != nil {
+		t.Fatalf("EmbedStore: %v", err)
+	}
+	if f.calls != 1 {
+		t.Fatalf("provider calls = %d, want 1", f.calls)
+	}
+	want := []string{"alpha", "gamma"}
+	if len(f.inputs[0]) != len(want) || f.inputs[0][0] != want[0] || f.inputs[0][1] != want[1] {
+		t.Errorf("provider input = %v, want %v (misses only, in order)", f.inputs[0], want)
+	}
+	if v, ok := got[betaID]; !ok || len(v) != 1 || v[0] != sentinel[0] {
+		t.Errorf("beta vector = %v, %v, want cached sentinel %v", v, ok, sentinel)
+	}
+	if len(got) != 3 {
+		t.Errorf("got %d vectors, want 3", len(got))
+	}
+}
