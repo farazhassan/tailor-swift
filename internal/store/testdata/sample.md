@@ -4,7 +4,7 @@
 Email: jane@example.com
 Phone: 555-0100
 Location: Remote
-Links: github.com/jane, linkedin.com/in/jane
+Links: https://github.com/jane, https://linkedin.com/in/jane
 
 ## Acme — Senior Engineer (2021-03 – present)
 

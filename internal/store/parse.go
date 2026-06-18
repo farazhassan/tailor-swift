@@ -17,6 +17,9 @@ func Parse(path string) (*Store, error) {
 	return ParseReader(data, path)
 }
 
+// maxLineBytes caps a single content-store line; resume lines never approach this.
+const maxLineBytes = 1024 * 1024
+
 type section int
 
 const (
@@ -33,7 +36,7 @@ func ParseReader(data []byte, path string) (*Store, error) {
 	sec := secNone
 
 	sc := bufio.NewScanner(bytes.NewReader(data))
-	sc.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+	sc.Buffer(make([]byte, 0, 64*1024), maxLineBytes)
 	lineNo := 0
 	for sc.Scan() {
 		lineNo++
@@ -111,7 +114,7 @@ func ParseReader(data []byte, path string) (*Store, error) {
 }
 
 func applyContactLine(c *Contact, line string) {
-	key, val, ok := strings.Cut(line, ":")
+	key, val, ok := strings.Cut(line, ": ")
 	if !ok {
 		return
 	}
