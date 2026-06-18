@@ -45,3 +45,13 @@ func TestParseRoleHeading_NoDates(t *testing.T) {
 		t.Fatalf("got %q / %q / %q / %q", c, ti, s, e)
 	}
 }
+
+func TestParseTags_MultipleSpans(t *testing.T) {
+	clean, tags := parseTags("Built thing `#tag1` and more `#tag2`")
+	if clean != "Built thing  and more" {
+		t.Fatalf("clean = %q", clean)
+	}
+	if !reflect.DeepEqual(tags, []string{"tag1", "tag2"}) {
+		t.Fatalf("tags = %v", tags)
+	}
+}

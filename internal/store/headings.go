@@ -11,7 +11,7 @@ var (
 	dateParen    = regexp.MustCompile(`\s*\(([^)]*)\)\s*$`)
 	// A range separator is a dash surrounded by whitespace, so internal
 	// hyphens in dates like "2021-03" are never split.
-	spacedDash = regexp.MustCompile(`\s+[–—-]\s+`)
+	spacedDash = regexp.MustCompile(`\s+[-–—]\s+`)
 )
 
 // parseTags extracts #tags from backtick spans on a line and returns the
