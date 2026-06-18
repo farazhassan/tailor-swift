@@ -135,3 +135,27 @@ func TestEmbedStorePartiallyWarmCache(t *testing.T) {
 		t.Errorf("got %d vectors, want 3", len(got))
 	}
 }
+
+func TestEmbedTextsReturnsVectorsInOrderAndCaches(t *testing.T) {
+	f := &fakeEmb{}
+	e := NewEmbedder(f, NewCache("voyage-3"))
+
+	got, err := e.EmbedTexts(context.Background(), []string{"go", "kafka", "go"})
+	if err != nil {
+		t.Fatalf("EmbedTexts: %v", err)
+	}
+	if len(got) != 3 {
+		t.Fatalf("got %d vectors, want 3", len(got))
+	}
+	// fakeEmb returns {len(text)} so duplicates match and order is preserved.
+	if got[0][0] != 2 || got[1][0] != 5 || got[2][0] != 2 {
+		t.Errorf("vectors = %v, want first elems [2 5 2]", got)
+	}
+	// "go" appears twice but must be embedded once (dedup by content hash).
+	if f.calls != 1 {
+		t.Errorf("provider calls = %d, want 1", f.calls)
+	}
+	if len(f.inputs[0]) != 2 {
+		t.Errorf("provider got %d unique texts, want 2", len(f.inputs[0]))
+	}
+}
