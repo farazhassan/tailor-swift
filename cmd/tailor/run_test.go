@@ -43,3 +43,22 @@ func TestRun_KnownStubs(t *testing.T) {
 		}
 	}
 }
+
+func TestRun_Validate_Summarizes(t *testing.T) {
+	code, out, errOut := runCapture("validate", "../../internal/store/testdata/sample.md")
+	if code != 0 {
+		t.Fatalf("exit code = %d, stderr=%q", code, errOut)
+	}
+	for _, want := range []string{"Jane Doe", "roles: 2", "achievements: 4", "skills: 4"} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("stdout = %q, missing %q", out, want)
+		}
+	}
+}
+
+func TestRun_Validate_MissingFile(t *testing.T) {
+	code, _, _ := runCapture("validate")
+	if code != 2 {
+		t.Fatalf("exit code = %d, want 2 when no path given", code)
+	}
+}
