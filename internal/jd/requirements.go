@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/farazhassan/gantry"
+	"github.com/farazhassan/tailor-swift/internal/fence"
 )
 
 const requirementsSystemPrompt = `You extract structured hiring requirements from a job description.
@@ -30,22 +31,8 @@ func ExtractRequirements(ctx context.Context, llm gantry.LLMClient, jobText stri
 		return nil, fmt.Errorf("jd: extract requirements: %w", err)
 	}
 	var reqs []Requirement
-	if err := json.Unmarshal([]byte(stripCodeFence(resp.Content)), &reqs); err != nil {
+	if err := json.Unmarshal([]byte(fence.Strip(resp.Content)), &reqs); err != nil {
 		return nil, fmt.Errorf("jd: parse requirements json: %w", err)
 	}
 	return reqs, nil
-}
-
-// stripCodeFence removes a surrounding markdown code fence if present, so JSON
-// wrapped in ```json ... ``` still parses.
-func stripCodeFence(s string) string {
-	s = strings.TrimSpace(s)
-	if !strings.HasPrefix(s, "```") {
-		return s
-	}
-	if i := strings.IndexByte(s, '\n'); i >= 0 {
-		s = s[i+1:]
-	}
-	s = strings.TrimSpace(s)
-	return strings.TrimSpace(strings.TrimSuffix(s, "```"))
 }

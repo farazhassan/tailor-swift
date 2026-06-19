@@ -4,9 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strings"
 
 	"github.com/farazhassan/gantry"
+	"github.com/farazhassan/tailor-swift/internal/fence"
 )
 
 // Generate asks the LLM to select and rephrase candidate achievements for the
@@ -26,7 +26,7 @@ func Generate(ctx context.Context, llm gantry.LLMClient, in Input) (*Result, err
 		return nil, fmt.Errorf("generate: llm: %w", err)
 	}
 	var bullets []Bullet
-	if err := json.Unmarshal([]byte(stripCodeFence(resp.Content)), &bullets); err != nil {
+	if err := json.Unmarshal([]byte(fence.Strip(resp.Content)), &bullets); err != nil {
 		return nil, fmt.Errorf("generate: parse bullets json: %w", err)
 	}
 	valid := make(map[string]bool, len(in.Candidates))
@@ -39,18 +39,4 @@ func Generate(ctx context.Context, llm gantry.LLMClient, in Input) (*Result, err
 		}
 	}
 	return &Result{Bullets: bullets}, nil
-}
-
-// stripCodeFence removes a surrounding markdown code fence if present, so JSON
-// wrapped in ```json ... ``` still parses.
-func stripCodeFence(s string) string {
-	s = strings.TrimSpace(s)
-	if !strings.HasPrefix(s, "```") {
-		return s
-	}
-	if i := strings.IndexByte(s, '\n'); i >= 0 {
-		s = s[i+1:]
-	}
-	s = strings.TrimSpace(s)
-	return strings.TrimSpace(strings.TrimSuffix(s, "```"))
 }
