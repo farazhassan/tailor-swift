@@ -56,3 +56,30 @@ func TestGenerateStripsCodeFence(t *testing.T) {
 		t.Errorf("bullets = %+v", got.Bullets)
 	}
 }
+
+func TestGenerateErrorsOnUnknownUnitID(t *testing.T) {
+	mock := eval.NewMockLLMClient(gantry.LLMResponse{
+		Content:    `[{"unit_id":"ghost","text":"fabricated"}]`,
+		StopReason: gantry.StopReasonEnd,
+	})
+	if _, err := Generate(context.Background(), mock, Input{Candidates: twoCandidates()}); err == nil {
+		t.Error("Generate: want error when a bullet references an unknown unit id, got nil")
+	}
+}
+
+func TestGenerateErrorsOnBadJSON(t *testing.T) {
+	mock := eval.NewMockLLMClient(gantry.LLMResponse{
+		Content:    "not json",
+		StopReason: gantry.StopReasonEnd,
+	})
+	if _, err := Generate(context.Background(), mock, Input{Candidates: twoCandidates()}); err == nil {
+		t.Error("Generate: want error on non-JSON content, got nil")
+	}
+}
+
+func TestGenerateErrorsOnNoCandidates(t *testing.T) {
+	mock := eval.NewMockLLMClient()
+	if _, err := Generate(context.Background(), mock, Input{}); err == nil {
+		t.Error("Generate: want error when there are no candidates, got nil")
+	}
+}
