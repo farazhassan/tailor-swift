@@ -1,0 +1,23 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{enumitem}
+\setlist{nosep}
+\pagestyle{empty}
+\begin{document}
+
+\begin{center}
+  {\Large \textbf{ {{.Name}} }}\\[2pt]
+  {{.Email}}{{if .Phone}} $\cdot$ {{.Phone}}{{end}}{{if .Location}} $\cdot$ {{.Location}}{{end}}
+\end{center}
+
+{{range .Roles}}
+\section*{ {{.Company}} \hfill {{.Title}} }
+{\itshape {{.Start}} -- {{.End}} }
+\begin{itemize}
+{{range .Bullets}}  \item {{.Text}}
+{{end}}\end{itemize}
+
+{{end}}{{if .Skills}}\section*{Skills}
+{{range $i, $s := .Skills}}{{if $i}}, {{end}}{{$s}}{{end}}
+
+{{end}}\end{document}
