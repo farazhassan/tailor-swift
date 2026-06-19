@@ -2,6 +2,7 @@ package render
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -57,4 +58,45 @@ func tailLines(s string, n int) string {
 		return s
 	}
 	return strings.Join(lines[len(lines)-n:], "\n")
+}
+
+// ErrCompileFailed reports that the document still did not compile after the
+// allowed number of repair attempts. The returned RepairResult carries the last
+// attempted source and the final compiler log so the caller can emit them.
+var ErrCompileFailed = errors.New("render: document did not compile after repairs")
+
+// RepairResult is the outcome of CompileWithRepair.
+type RepairResult struct {
+	OK       bool   // the document compiled
+	PDF      []byte // compiled PDF bytes; nil when OK is false
+	TeX      string // the (possibly repaired) source of the final attempt
+	Log      string // the final compiler log
+	Attempts int    // number of compile attempts made (1 = no repair needed)
+}
+
+// CompileWithRepair compiles tex and, on a LaTeX error, asks the LLM to fix it
+// and recompiles, up to maxRepairs times. It returns as soon as a compile
+// succeeds. If every attempt fails it returns the last attempt's RepairResult
+// together with ErrCompileFailed. A compiler environment error (non-nil error
+// from compile) aborts immediately and is returned wrapped, without ever calling
+// the LLM.
+func CompileWithRepair(ctx context.Context, compile CompileFunc, llm gantry.LLMClient, tex string, maxRepairs int) (RepairResult, error) {
+	current := tex
+	for attempt := 0; ; attempt++ {
+		res, err := compile(ctx, current)
+		if err != nil {
+			return RepairResult{}, fmt.Errorf("render: compile: %w", err)
+		}
+		if res.OK {
+			return RepairResult{OK: true, PDF: res.PDF, TeX: current, Log: res.Log, Attempts: attempt + 1}, nil
+		}
+		if attempt >= maxRepairs {
+			return RepairResult{OK: false, TeX: current, Log: res.Log, Attempts: attempt + 1}, ErrCompileFailed
+		}
+		fixed, rerr := repairTeX(ctx, llm, current, res.Log)
+		if rerr != nil {
+			return RepairResult{OK: false, TeX: current, Log: res.Log, Attempts: attempt + 1}, rerr
+		}
+		current = fixed
+	}
 }
