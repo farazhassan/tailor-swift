@@ -52,8 +52,8 @@ real clients and calls it.
 // Config is the static input to an acquisition (the CLI fills it from flags).
 type Config struct {
     ContentPath    string  // path to the content store markdown (store.Parse)
-    JDURL          string  // job posting URL (fetched + cached); one of URL/File required
-    JDFile         string  // local JD text file (offline); takes precedence if set
+    JDURL          string  // job posting URL (required: cache key + posting identity)
+    JDFile         string  // optional local JD text file (offline source; URL still required as cache key)
     Model          string  // embedding model id for cache scoping (default "voyage-3")
     TopK           int     // top-K candidates per requirement (default 8 when 0)
     MinScore       float64 // min similarity for a must-have to count as covered (default 0.0)
@@ -87,7 +87,7 @@ is carried for the JD URL / raw text (Plan 10b uses it for the output-dir slug a
 
 ```
 1. Apply defaults: Model ← "voyage-3" if ""; TopK ← 8 if 0. (MinScore left at 0.0.)
-2. Validate: at least one of JDURL / JDFile is set, else fatal config error.
+2. Validate: JDURL is set (it is jd.Acquire's mandatory cache key), else fatal config error.
 3. store.Parse(cfg.ContentPath)                          → *store.Store
 4. Build the embedder with a model-scoped cache:
      cache := embed.NewCache(cfg.Model)                  // or embed.LoadCache(EmbedCachePath, Model) if path set
@@ -122,7 +122,7 @@ partial `Result` is returned.
 
 **Fatal (return error):**
 - `store.Parse` failure (bad/missing content file).
-- Config: neither `JDURL` nor `JDFile` set (`pipeline: no JD source`).
+- Config: `JDURL` empty (`pipeline: JD URL is required`).
 - `jd.Acquire` failure (fetch error, unparseable JD, LLM extraction error).
 - Empty `posting.Requirements` (`pipeline: job posting has no requirements`).
 - Any embedder error (`EmbedStore` / `EmbedTexts`).
@@ -166,7 +166,7 @@ Test cases:
    assert candidate cap/ranking).
 4. **No requirements** — mock LLM returns an empty list → `Acquire` returns the
    "no requirements" error.
-5. **No JD source** — both `JDURL` and `JDFile` empty → config error.
+5. **No JD URL** — `JDURL` empty → config error (validated before any work).
 6. **Embed cache round-trip** — set `EmbedCachePath` to a temp file; first `Acquire`
    writes it; a second run whose fake embedder panics-on-call still succeeds (proving
    cached vectors were loaded, not re-embedded), confirming the model-scoped cache
