@@ -66,6 +66,10 @@ type critiqueOut struct {
 
 // writeArtifacts writes resume.tex, resume.pdf (skipped when the best iteration
 // produced no PDF), critique.json, and run.log into dir. dir must already exist.
+//
+// Precondition: run.Best must be non-nil. orchestrate.Result.Best can be nil
+// (e.g. the budget tripped on the very first generate); the caller is
+// responsible for handling that case before calling writeArtifacts.
 func writeArtifacts(dir string, run *orchestrate.Result, acq *pipeline.Result, stderr io.Writer) error {
 	best := run.Best
 	if err := os.WriteFile(filepath.Join(dir, "resume.tex"), []byte(best.TeX), 0o644); err != nil {
