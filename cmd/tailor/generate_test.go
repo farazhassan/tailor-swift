@@ -336,6 +336,19 @@ func TestRunGenerateMissingJDURL(t *testing.T) {
 	if code != 2 {
 		t.Fatalf("exit = %d, want 2; stderr=%s", code, errOut)
 	}
+	if !strings.Contains(errOut, "required") {
+		t.Errorf("stderr = %q, want 'required'", errOut)
+	}
+}
+
+func TestRunGenerateEmptyModel(t *testing.T) {
+	code, _, errOut := runCapture("generate", "--content", "some.md", "--jd-url", "https://acme.com/job", "--model", "")
+	if code != 2 {
+		t.Fatalf("exit = %d, want 2; stderr=%s", code, errOut)
+	}
+	if !strings.Contains(errOut, "--model must not be empty") {
+		t.Errorf("stderr = %q, want '--model must not be empty'", errOut)
+	}
 }
 
 func TestRunGenerateMissingAPIKeyIsFatal(t *testing.T) {

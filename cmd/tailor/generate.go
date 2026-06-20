@@ -66,6 +66,10 @@ func runGenerate(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, generateUsage)
 		return 2
 	}
+	if *model == "" {
+		fmt.Fprintln(stderr, "generate: --model must not be empty")
+		return 2
+	}
 
 	tmpl := templates.Default
 	if *template != "" {
