@@ -188,7 +188,7 @@ func slugify(rawURL string) string {
 				break
 			}
 		}
-		if seg == "" {
+		if seg == "" && u.Path == "" {
 			seg = u.Host
 		}
 	}
