@@ -33,7 +33,7 @@ func TestRun_UnknownCommand(t *testing.T) {
 }
 
 func TestRun_KnownStubs(t *testing.T) {
-	for _, cmd := range []string{"ingest", "generate", "evaluate"} {
+	for _, cmd := range []string{"ingest", "evaluate"} {
 		code, out, _ := runCapture(cmd)
 		if code != 0 {
 			t.Fatalf("%s exit code = %d, want 0", cmd, code)

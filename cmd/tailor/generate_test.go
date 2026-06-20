@@ -320,3 +320,31 @@ func TestGenRunOverwritesSameDay(t *testing.T) {
 		t.Fatalf("second run exit = %d; stderr=%s", code, e2.String())
 	}
 }
+
+func TestRunGenerateMissingContent(t *testing.T) {
+	code, _, errOut := runCapture("generate", "--jd-url", "https://acme.com/job")
+	if code != 2 {
+		t.Fatalf("exit = %d, want 2; stderr=%s", code, errOut)
+	}
+	if !strings.Contains(errOut, "required") {
+		t.Errorf("stderr = %q, want 'required'", errOut)
+	}
+}
+
+func TestRunGenerateMissingJDURL(t *testing.T) {
+	code, _, errOut := runCapture("generate", "--content", "some.md")
+	if code != 2 {
+		t.Fatalf("exit = %d, want 2; stderr=%s", code, errOut)
+	}
+}
+
+func TestRunGenerateMissingAPIKeyIsFatal(t *testing.T) {
+	t.Setenv("VOYAGE_API_KEY", "")
+	t.Setenv("ANTHROPIC_API_KEY", "")
+	dir := t.TempDir()
+	content := writeFileT(t, dir, "content.md", cliContent)
+	code, _, errOut := runCapture("generate", "--content", content, "--jd-url", "https://acme.com/job")
+	if code != 1 {
+		t.Fatalf("exit = %d, want 1; stderr=%s", code, errOut)
+	}
+}

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"net/url"
@@ -14,12 +15,107 @@ import (
 	"github.com/farazhassan/gantry"
 	"github.com/farazhassan/gantry/components/embeddings"
 	"github.com/farazhassan/gantry/components/limiter"
+	"github.com/farazhassan/gantry/components/llm/anthropic"
+	"github.com/farazhassan/tailor-swift/internal/embed"
 	"github.com/farazhassan/tailor-swift/internal/orchestrate"
 	"github.com/farazhassan/tailor-swift/internal/pipeline"
 	"github.com/farazhassan/tailor-swift/internal/render"
+	"github.com/farazhassan/tailor-swift/templates"
 )
 
 const defaultMaxRepairs = 2
+
+const generateUsage = `usage: tailor generate --content <file> --jd-url <url> [flags]
+
+required:
+  --content <file>   content store markdown
+  --jd-url <url>     job posting URL
+
+optional:
+  --jd-file <file>   local job description text (URL still required)
+  --model <id>       Anthropic model (default claude-sonnet-4-6)
+  --out <dir>        base output directory (default out)
+  --template <file>  LaTeX template override (default: built-in)
+  --max-iterations N refinement iterations (default 3)
+  --top-k N          candidates per requirement (default 8)
+  --min-score F      min similarity for a must-have (default 0)
+  --embed-cache <f>  embedding cache file (default: disabled)
+  --jd-cache <dir>   cached postings directory`
+
+// runGenerate parses flags, constructs the real clients, resolves the template,
+// and calls genRun. Returns the process exit code.
+func runGenerate(args []string, stdout, stderr io.Writer) int {
+	fs := flag.NewFlagSet("generate", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	content := fs.String("content", "", "content store markdown (required)")
+	jdURL := fs.String("jd-url", "", "job posting URL (required)")
+	jdFile := fs.String("jd-file", "", "local job description text file")
+	model := fs.String("model", "claude-sonnet-4-6", "Anthropic model id")
+	out := fs.String("out", "out", "base output directory")
+	template := fs.String("template", "", "LaTeX template override")
+	maxIter := fs.Int("max-iterations", 3, "max refinement iterations")
+	topK := fs.Int("top-k", 8, "top-K candidates per requirement")
+	minScore := fs.Float64("min-score", 0, "min similarity for a must-have")
+	embedCache := fs.String("embed-cache", "", "embedding cache file")
+	jdCache := fs.String("jd-cache", "", "cached postings directory")
+	if err := fs.Parse(args); err != nil {
+		return 2 // flag already printed the error to stderr
+	}
+	if *content == "" || *jdURL == "" {
+		fmt.Fprintln(stderr, "generate: --content and --jd-url are required")
+		fmt.Fprintln(stderr, generateUsage)
+		return 2
+	}
+
+	tmpl := templates.Default
+	if *template != "" {
+		data, err := os.ReadFile(*template)
+		if err != nil {
+			fmt.Fprintf(stderr, "generate: read template: %v\n", err)
+			return 1
+		}
+		tmpl = string(data)
+	}
+
+	embedder, err := embed.NewVoyageClient()
+	if err != nil {
+		fmt.Fprintf(stderr, "generate: %v\n", err)
+		return 1
+	}
+	embedModel := os.Getenv("VOYAGE_MODEL")
+	if embedModel == "" {
+		embedModel = "voyage-3"
+	}
+
+	llm, err := newAnthropic(*model)
+	if err != nil {
+		fmt.Fprintf(stderr, "generate: %v\n", err)
+		return 1
+	}
+
+	deps := genDeps{
+		ExtractLLM: llm, GenLLM: llm, EvalLLM: llm, RepairLLM: llm,
+		Embedder: embedder, Compile: render.PDFLaTeX, Template: tmpl,
+	}
+	cfg := genConfig{
+		ContentPath: *content, JDURL: *jdURL, JDFile: *jdFile, OutDir: *out,
+		EmbedModel: embedModel, TopK: *topK, MinScore: *minScore,
+		MaxIterations: *maxIter, EmbedCachePath: *embedCache, JDCacheDir: *jdCache,
+		Today: time.Now(),
+	}
+	return genRun(context.Background(), cfg, deps, stdout, stderr)
+}
+
+// newAnthropic constructs the Anthropic client, converting its panic (missing
+// key or empty model) into an error so the command exits cleanly.
+func newAnthropic(model string) (llm gantry.LLMClient, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("%v", r)
+		}
+	}()
+	return anthropic.New(model), nil
+}
 
 // genConfig is the resolved, validated input to the core (the wiring fills it
 // from flags; tests construct it directly).
