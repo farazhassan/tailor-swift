@@ -376,13 +376,10 @@ func TestRunGenerateMissingJDURL(t *testing.T) {
 	}
 }
 
-func TestRunGenerateEmptyModel(t *testing.T) {
-	code, _, errOut := runCapture("generate", "--content", "some.md", "--jd-url", "https://acme.com/job", "--model", "")
+func TestRunGenerateUnknownProvider(t *testing.T) {
+	code, _, errOut := runCapture("generate", "--content", "some.md", "--jd-url", "https://acme.com/job", "--provider", "bogus")
 	if code != 2 {
 		t.Fatalf("exit = %d, want 2; stderr=%s", code, errOut)
-	}
-	if !strings.Contains(errOut, "--model must not be empty") {
-		t.Errorf("stderr = %q, want '--model must not be empty'", errOut)
 	}
 }
 
