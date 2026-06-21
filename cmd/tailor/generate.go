@@ -16,6 +16,7 @@ import (
 	"github.com/farazhassan/gantry/components/embeddings"
 	"github.com/farazhassan/gantry/components/limiter"
 	"github.com/farazhassan/gantry/components/llm/anthropic"
+	"github.com/farazhassan/gantry/components/llm/openrouter"
 	"github.com/farazhassan/tailor-swift/internal/embed"
 	"github.com/farazhassan/tailor-swift/internal/orchestrate"
 	"github.com/farazhassan/tailor-swift/internal/pipeline"
@@ -119,6 +120,42 @@ func newAnthropic(model string) (llm gantry.LLMClient, err error) {
 		}
 	}()
 	return anthropic.New(model), nil
+}
+
+func resolveProvider(p string) (string, error) {
+	switch p {
+	case "anthropic", "openrouter":
+		return p, nil
+	default:
+		return "", fmt.Errorf("unknown provider %q (want anthropic or openrouter)", p)
+	}
+}
+
+func defaultModel(provider string) string {
+	switch provider {
+	case "openrouter":
+		return "anthropic/claude-sonnet-4-6"
+	default: // anthropic
+		return "claude-sonnet-4-6"
+	}
+}
+
+func newOpenRouter(model string) (llm gantry.LLMClient, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("%v", r)
+		}
+	}()
+	return openrouter.New(model), nil
+}
+
+func newLLM(provider, model string) (gantry.LLMClient, error) {
+	switch provider {
+	case "openrouter":
+		return newOpenRouter(model)
+	default: // anthropic
+		return newAnthropic(model)
+	}
 }
 
 // genConfig is the resolved, validated input to the core (the wiring fills it

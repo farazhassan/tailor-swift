@@ -35,6 +35,41 @@ func TestSlugify(t *testing.T) {
 	}
 }
 
+func TestResolveProvider(t *testing.T) {
+	for _, tc := range []struct {
+		in      string
+		want    string
+		wantErr bool
+	}{
+		{"anthropic", "anthropic", false},
+		{"openrouter", "openrouter", false},
+		{"bogus", "", true},
+	} {
+		got, err := resolveProvider(tc.in)
+		if tc.wantErr {
+			if err == nil {
+				t.Errorf("resolveProvider(%q): want error, got nil", tc.in)
+			}
+			continue
+		}
+		if err != nil {
+			t.Errorf("resolveProvider(%q): unexpected error %v", tc.in, err)
+		}
+		if got != tc.want {
+			t.Errorf("resolveProvider(%q) = %q, want %q", tc.in, got, tc.want)
+		}
+	}
+}
+
+func TestDefaultModel(t *testing.T) {
+	if got := defaultModel("anthropic"); got != "claude-sonnet-4-6" {
+		t.Errorf("defaultModel(anthropic) = %q, want claude-sonnet-4-6", got)
+	}
+	if got := defaultModel("openrouter"); got != "anthropic/claude-sonnet-4-6" {
+		t.Errorf("defaultModel(openrouter) = %q, want anthropic/claude-sonnet-4-6", got)
+	}
+}
+
 // acqResult builds a minimal pipeline.Result for artifact tests.
 func acqResult() *pipeline.Result {
 	return &pipeline.Result{
