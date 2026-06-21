@@ -381,6 +381,9 @@ func TestRunGenerateUnknownProvider(t *testing.T) {
 	if code != 2 {
 		t.Fatalf("exit = %d, want 2; stderr=%s", code, errOut)
 	}
+	if !strings.Contains(errOut, "unknown provider") {
+		t.Errorf("stderr = %q, want 'unknown provider'", errOut)
+	}
 }
 
 func TestRunGenerateMissingAPIKeyIsFatal(t *testing.T) {
