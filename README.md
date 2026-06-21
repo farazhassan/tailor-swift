@@ -36,7 +36,17 @@ pipeline against live services.
 
 ### Prerequisites
 
-1. **API keys** (exported in your shell):
+1. **API keys.** The CLI reads keys from the environment. The easiest way is to
+   copy the sample config, fill in your keys, and source it into your shell:
+
+   ```bash
+   cp env.sample .env
+   # edit .env and paste your keys
+   set -a; source .env; set +a   # export every var for the current shell
+   ```
+
+   `.env` is gitignored, so your real keys never get committed. Prefer not to
+   use a file? Export the same variables directly instead:
 
    ```bash
    export VOYAGE_API_KEY=...
@@ -46,6 +56,15 @@ pipeline against live services.
    # optional, defaults shown:
    export VOYAGE_MODEL=voyage-3
    ```
+
+   The variables (see `env.sample` for the annotated list):
+
+   | Variable             | When needed                                        |
+   | -------------------- | -------------------------------------------------- |
+   | `VOYAGE_API_KEY`     | Always (embeddings); command exits 1 without it    |
+   | `OPENROUTER_API_KEY` | Default `openrouter` provider                      |
+   | `ANTHROPIC_API_KEY`  | Only with `--provider anthropic`                   |
+   | `VOYAGE_MODEL`       | Optional; defaults to `voyage-3`                   |
 
    - Missing `VOYAGE_API_KEY` → the command exits 1 (the Voyage client is built
      first).
