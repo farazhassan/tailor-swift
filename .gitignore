@@ -1,3 +1,6 @@
 cache/
 out/
 *.pdf
+.env
+/tailor
+source/

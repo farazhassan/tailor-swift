@@ -16,6 +16,7 @@ import (
 	"github.com/farazhassan/gantry/components/embeddings"
 	"github.com/farazhassan/gantry/components/limiter"
 	"github.com/farazhassan/gantry/components/llm/anthropic"
+	"github.com/farazhassan/gantry/components/llm/openrouter"
 	"github.com/farazhassan/tailor-swift/internal/embed"
 	"github.com/farazhassan/tailor-swift/internal/orchestrate"
 	"github.com/farazhassan/tailor-swift/internal/pipeline"
@@ -33,7 +34,8 @@ required:
 
 optional:
   --jd-file <file>   local job description text (URL still required)
-  --model <id>       Anthropic model (default claude-sonnet-4-6)
+  --provider <name>  LLM provider: anthropic or openrouter (default openrouter)
+  --model <id>       model id (default: provider-specific)
   --out <dir>        base output directory (default out)
   --template <file>  LaTeX template override (default: built-in)
   --max-iterations N refinement iterations (default 3)
@@ -50,7 +52,8 @@ func runGenerate(args []string, stdout, stderr io.Writer) int {
 	content := fs.String("content", "", "content store markdown (required)")
 	jdURL := fs.String("jd-url", "", "job posting URL (required)")
 	jdFile := fs.String("jd-file", "", "local job description text file")
-	model := fs.String("model", "claude-sonnet-4-6", "Anthropic model id")
+	model := fs.String("model", "", "model id (default: provider-specific)")
+	provider := fs.String("provider", "openrouter", "LLM provider: anthropic or openrouter")
 	out := fs.String("out", "out", "base output directory")
 	template := fs.String("template", "", "LaTeX template override")
 	maxIter := fs.Int("max-iterations", 3, "max refinement iterations")
@@ -66,9 +69,14 @@ func runGenerate(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, generateUsage)
 		return 2
 	}
-	if *model == "" {
-		fmt.Fprintln(stderr, "generate: --model must not be empty")
+	prov, err := resolveProvider(*provider)
+	if err != nil {
+		fmt.Fprintf(stderr, "generate: %v\n", err)
 		return 2
+	}
+	modelID := *model
+	if modelID == "" {
+		modelID = defaultModel(prov)
 	}
 
 	tmpl := templates.Default
@@ -91,7 +99,7 @@ func runGenerate(args []string, stdout, stderr io.Writer) int {
 		embedModel = "voyage-3"
 	}
 
-	llm, err := newAnthropic(*model)
+	llm, err := newLLM(prov, modelID)
 	if err != nil {
 		fmt.Fprintf(stderr, "generate: %v\n", err)
 		return 1
@@ -119,6 +127,42 @@ func newAnthropic(model string) (llm gantry.LLMClient, err error) {
 		}
 	}()
 	return anthropic.New(model), nil
+}
+
+func resolveProvider(p string) (string, error) {
+	switch p {
+	case "anthropic", "openrouter":
+		return p, nil
+	default:
+		return "", fmt.Errorf("unknown provider %q (want anthropic or openrouter)", p)
+	}
+}
+
+func defaultModel(provider string) string {
+	switch provider {
+	case "openrouter":
+		return "anthropic/claude-sonnet-4-6"
+	default: // anthropic
+		return "claude-sonnet-4-6"
+	}
+}
+
+func newOpenRouter(model string) (llm gantry.LLMClient, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("%v", r)
+		}
+	}()
+	return openrouter.New(model), nil
+}
+
+func newLLM(provider, model string) (gantry.LLMClient, error) {
+	switch provider {
+	case "openrouter":
+		return newOpenRouter(model)
+	default: // anthropic
+		return newAnthropic(model)
+	}
 }
 
 // genConfig is the resolved, validated input to the core (the wiring fills it

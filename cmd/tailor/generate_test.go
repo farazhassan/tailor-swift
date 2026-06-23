@@ -35,6 +35,41 @@ func TestSlugify(t *testing.T) {
 	}
 }
 
+func TestResolveProvider(t *testing.T) {
+	for _, tc := range []struct {
+		in      string
+		want    string
+		wantErr bool
+	}{
+		{"anthropic", "anthropic", false},
+		{"openrouter", "openrouter", false},
+		{"bogus", "", true},
+	} {
+		got, err := resolveProvider(tc.in)
+		if tc.wantErr {
+			if err == nil {
+				t.Errorf("resolveProvider(%q): want error, got nil", tc.in)
+			}
+			continue
+		}
+		if err != nil {
+			t.Errorf("resolveProvider(%q): unexpected error %v", tc.in, err)
+		}
+		if got != tc.want {
+			t.Errorf("resolveProvider(%q) = %q, want %q", tc.in, got, tc.want)
+		}
+	}
+}
+
+func TestDefaultModel(t *testing.T) {
+	if got := defaultModel("anthropic"); got != "claude-sonnet-4-6" {
+		t.Errorf("defaultModel(anthropic) = %q, want claude-sonnet-4-6", got)
+	}
+	if got := defaultModel("openrouter"); got != "anthropic/claude-sonnet-4-6" {
+		t.Errorf("defaultModel(openrouter) = %q, want anthropic/claude-sonnet-4-6", got)
+	}
+}
+
 // acqResult builds a minimal pipeline.Result for artifact tests.
 func acqResult() *pipeline.Result {
 	return &pipeline.Result{
@@ -341,13 +376,13 @@ func TestRunGenerateMissingJDURL(t *testing.T) {
 	}
 }
 
-func TestRunGenerateEmptyModel(t *testing.T) {
-	code, _, errOut := runCapture("generate", "--content", "some.md", "--jd-url", "https://acme.com/job", "--model", "")
+func TestRunGenerateUnknownProvider(t *testing.T) {
+	code, _, errOut := runCapture("generate", "--content", "some.md", "--jd-url", "https://acme.com/job", "--provider", "bogus")
 	if code != 2 {
 		t.Fatalf("exit = %d, want 2; stderr=%s", code, errOut)
 	}
-	if !strings.Contains(errOut, "--model must not be empty") {
-		t.Errorf("stderr = %q, want '--model must not be empty'", errOut)
+	if !strings.Contains(errOut, "unknown provider") {
+		t.Errorf("stderr = %q, want 'unknown provider'", errOut)
 	}
 }
 
